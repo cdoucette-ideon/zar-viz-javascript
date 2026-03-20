@@ -15,6 +15,7 @@ A browser-based 3D volumetric viewer for [Zarr](https://zarr.dev/) files, built 
 - 📐 Physical aspect-ratio-correct bounding box using voxel spacing metadata
 - 🌈 Colormap legend with live min/mid/max labels
 
+<img width="2495" height="1266" alt="image" src="https://github.com/user-attachments/assets/3a215afb-7ee5-423d-aae9-47d7fd97da15" />
 ---
 
 ## Prerequisites
