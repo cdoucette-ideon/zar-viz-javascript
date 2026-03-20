@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "scalar_name": "density",
+    "dimensions": [
+      65,
+      65,
+      65
+    ],
+    "spacing": [
+      27.34375,
+      17.5,
+      25.46875
+    ],
+    "origin": [
+      421500.0,
+      7010050.0,
+      300.0
+    ]
+  },
+  "zarr_format": 3,
+  "node_type": "group"
+}

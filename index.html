@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Zarr Volume Viewer</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; overflow: hidden; background: #0d0d12; font-family: system-ui, sans-serif; color: #e8e8ee; }
+      #ui {
+        position: absolute; top: 14px; left: 14px; z-index: 10;
+        background: rgba(10,10,20,0.82); backdrop-filter: blur(6px);
+        border: 1px solid rgba(255,255,255,0.08);
+        padding: 14px 16px; border-radius: 10px; width: 300px;
+      }
+      h2 { margin: 0 0 12px; font-size: 14px; letter-spacing: 0.04em; opacity: 0.75; text-transform: uppercase; }
+      .row { margin-top: 10px; }
+      label { display: block; font-size: 11px; opacity: 0.65; margin-bottom: 3px; }
+      input[type="text"], input[type="number"] {
+        width: 100%; padding: 5px 8px; background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; color: #fff; font-size: 12px;
+      }
+      select {
+        width: 100%; padding: 5px 8px; background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; color: #fff; font-size: 12px;
+      }
+      input[type="range"] { width: 100%; accent-color: #7b9eff; }
+      button {
+        margin-top: 12px; width: 100%; padding: 7px; border: none; border-radius: 6px;
+        background: #3d63e8; color: white; font-size: 13px; cursor: pointer; font-weight: 600;
+      }
+      button:hover { background: #5579f5; }
+      button:disabled { background: #2a2a40; cursor: not-allowed; }
+      #status { margin-top: 10px; font-size: 11px; opacity: 0.8; white-space: pre-wrap; min-height: 16px; line-height: 1.5; }
+      .val { float: right; opacity: 0.9; font-variant-numeric: tabular-nums; }
+      .divider { margin: 12px 0 8px; border: none; border-top: 1px solid rgba(255,255,255,0.08); }
+      #axisInfo { font-size: 11px; opacity: 0.55; margin-top: 6px; }
+    
+      /* ── Colormap legend ── */
+      #legend {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      #legendBar {
+        width: 300px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1px solid rgba(255,255,255,0.15);
+      }
+      #legendLabels {
+        width: 300px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: rgba(255,255,255,0.65);
+        font-variant-numeric: tabular-nums;
+      }
+      #legendTitle {
+        font-size: 11px;
+        color: rgba(255,255,255,0.5);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+    
+    </style>
+  </head>
+  <body>
+    <div id="ui">
+      <h2>Zarr Volume Raymarcher</h2>
+
+      <div class="row">
+        <label>Local Zarr file</label>
+        <select id="localPicker">
+          <option value="">-- pick a file --</option>
+          <option value="http://localhost:5173/model.zarr">model.zarr</option>
+          <option value="http://localhost:5173/ideon_macpass_muon_density_unconstrained_final.zarr">ideon_macpass_muon_density_unconstrained_final.zarr</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>...or enter a custom URL</label>
+        <input id="storeUrl" type="text" placeholder="http://localhost:5173/model.zarr" />
+      </div>
+
+      <div class="row">
+        <label>Array path (blank to auto-detect)</label>
+        <input id="arrayPath" type="text" placeholder="e.g. density" />
+      </div>
+
+      <button id="loadBtn">Load &amp; Render Volume</button>
+      <hr class="divider" />
+
+      <div class="row">
+        <label>Colormap</label>
+        <select id="colormapPicker">
+          <option value="viridis">Viridis</option>
+          <option value="plasma">Plasma</option>
+        </select>
+      </div>
+     
+      <div class="row" id="cmapRow" style="display:none">
+        <label>Colormap min</label>
+        <input id="cmapMinSlider" type="number" step="any" placeholder="e.g. 1200.0" />
+      </div>
+
+      <div class="row" id="cmapMaxRow" style="display:none">
+        <label>Colormap max</label>
+        <input id="cmapMaxSlider" type="number" step="any" placeholder="e.g. 2500.0" />
+      </div>
+       
+      <div class="row" id="thrRow" style="display:none">
+        <label>Threshold min</label>
+        <input id="thrMinInput" type="number" step="any" placeholder="e.g. 1200.0" />
+      </div>
+
+      <div class="row" id="thrMaxRow" style="display:none">
+        <label>Threshold max</label>
+        <input id="thrMaxInput" type="number" step="any" placeholder="e.g. 2500.0" />
+      </div>
+      
+      <div class="row" id="densityRow" style="display:none">
+        <label>Density scale (solidity) <span class="val" id="densityVal">20</span></label>
+        <input id="densitySlider" type="range" min="1" max="200" step="1" value="20" />
+      </div>
+
+      <div class="row" id="opacRow" style="display:none">
+        <label>Opacity <span class="val" id="opacVal">1.00</span></label>
+        <input id="opacSlider" type="range" min="0.01" max="1" step="0.01" value="1" />
+      </div>
+
+      <div class="row" id="stepsRow" style="display:none">
+        <label>Ray steps (quality) <span class="val" id="stepsVal">100</span></label>
+        <input id="stepsSlider" type="range" min="20" max="400" step="10" value="100" />
+      </div>
+
+      <div id="axisInfo"></div>
+      <div id="status"></div>
+    </div>
+
+    <div id="legend">
+      <div id="legendTitle">density</div>
+      <canvas id="legendBar" width="300" height="16"></canvas>
+      <div id="legendLabels">
+        <span id="legendMin">0.000</span>
+        <span id="legendMid">0.500</span>
+        <span id="legendMax">1.000</span>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
